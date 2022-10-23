@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <numeric>
 
 using namespace std;
 
@@ -160,17 +161,14 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
+        int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
         return rating_sum / static_cast<int>(ratings.size());
     }
 
     struct QueryWord {
         string data;
-        bool is_minus;
-        bool is_stop;
+        bool is_minus = true;
+        bool is_stop = true;
     };
 
     QueryWord ParseQueryWord(string text) const {
@@ -195,8 +193,7 @@ private:
             if (!query_word.is_stop) {
                 if (query_word.is_minus) {
                     query.minus_words.insert(query_word.data);
-                }
-                else {
+                } else {
                     query.plus_words.insert(query_word.data);
                 }
             }
@@ -221,9 +218,8 @@ private:
             }
             const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);              // IDF calculation
             for (const auto [document_id, term_freq] : word_to_document_freqs_.at(word)) {
-                if ( predicat(document_id, documents_.at(document_id).status, documents_.at(document_id).rating) // lambda uses HERE
-                    
-                    /*documents_.at(document_id).status == status*/) {
+                const DocumentData& a = documents_.at(document_id);         // temporary object
+                if ( predicat(document_id, a.status, a.rating) ) {          // lambda uses HERE
                     document_to_relevance[document_id] += term_freq * inverse_document_freq;
                 }
             }
