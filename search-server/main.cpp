@@ -78,12 +78,12 @@ public:
         documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
     }
 
-    template <typename Predicat>
-    vector<Document> FindTopDocuments(const string& raw_query, Predicat predicat) const {
+    template <typename Predicate>
+    vector<Document> FindTopDocuments(const string& raw_query, Predicate predicate) const {
         // predicat - функция. Должна возвращать bool и принимать много всего из лямбды в точке вызова
         const Query query = ParseQuery(raw_query);
 
-        auto matched_documents = FindAllDocuments(query, predicat);
+        auto matched_documents = FindAllDocuments(query, predicate);
 
         sort(matched_documents.begin(), matched_documents.end(),
             [](const Document& lhs, const Document& rhs) {
@@ -204,8 +204,8 @@ private:
         return log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
     }
 
-    template <typename Predicat>
-    vector<Document> FindAllDocuments(const Query& query, Predicat predicat) const {                // predicat from lambda rethrowed here
+    template <typename Predicate>
+    vector<Document> FindAllDocuments(const Query& query, Predicate predicate) const {                // predicate from lambda rethrowed here
 
         map<int, double> document_to_relevance;
         for (const string& word : query.plus_words) {
@@ -215,7 +215,7 @@ private:
             const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);              // IDF calculation
             for (const auto [document_id, term_freq] : word_to_document_freqs_.at(word)) {
                 const DocumentData& a = documents_.at(document_id);                                 // temporary object
-                if (predicat(document_id, a.status, a.rating)) {                                    // lambda uses HERE
+                if (predicate(document_id, a.status, a.rating)) {                                    // lambda uses HERE
                     document_to_relevance[document_id] += term_freq * inverse_document_freq;
                 }
             }
@@ -247,11 +247,11 @@ void PrintDocument(const Document& document) {
         << " }"s << endl;
 }
 
-ostream& operator<< (ostream & os, DocumentStatus doc_status) {
-    if (doc_status == DocumentStatus::ACTUAL) os << DocumentStatus::ACTUAL;
-    if (doc_status == DocumentStatus::BANNED) os << DocumentStatus::BANNED;
-    if (doc_status == DocumentStatus::IRRELEVANT) os << DocumentStatus::IRRELEVANT;
-    if (doc_status == DocumentStatus::REMOVED) os << DocumentStatus::REMOVED;
+ostream& operator<<(ostream & os, DocumentStatus doc_status) {
+    if (doc_status == DocumentStatus::ACTUAL) os << "actual"s;
+    if (doc_status == DocumentStatus::BANNED) os << "banned"s;
+    if (doc_status == DocumentStatus::IRRELEVANT) os << "irrelevant"s;
+    if (doc_status == DocumentStatus::REMOVED) os << "removed"s;
     return os;
 }
 
@@ -326,270 +326,237 @@ void TestExcludeStopWordsFromAddedDocumentContent() {
     }
 }
 
-void TestMinusWords() {
+void TestExcludeDocumentsByMinusWords() {
     const int doc_id = 12;
     const string content = "cat in the city"s;
     const vector<int> ratings = { 1, 2, 3 };
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        const auto found_docs = srv.FindTopDocuments("cat -city"s);
-        ASSERT_EQUAL(found_docs.size(), 0);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        const auto found_docs = server.FindTopDocuments("cat -city"s);
+        ASSERT_EQUAL(found_docs.size(), 0u);
     }    
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        const auto found_docs = srv.FindTopDocuments("-city"s);
-        ASSERT_EQUAL(found_docs.size(), 0);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        const auto found_docs = server.FindTopDocuments("-city"s);
+        ASSERT_EQUAL(found_docs.size(), 0u);
     }   
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        const auto found_docs = srv.FindTopDocuments("-city -city"s);
-        ASSERT_EQUAL(found_docs.size(), 0);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        const auto found_docs = server.FindTopDocuments("-city -city"s);
+        ASSERT_EQUAL(found_docs.size(), 0u);
     }
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        const auto found_docs = srv.FindTopDocuments("city -city"s);
-        ASSERT_EQUAL(found_docs.size(), 0);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        const auto found_docs = server.FindTopDocuments("city -city"s);
+        ASSERT_EQUAL(found_docs.size(), 0u);
     }
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        const auto found_docs = srv.FindTopDocuments("city -a"s);
-        ASSERT_EQUAL(found_docs.size(), 1);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        const auto found_docs = server.FindTopDocuments("city -a"s);
+        ASSERT_EQUAL(found_docs.size(), 1u);
     }
 }
 
-void TestMatching() {
+void TestMatchingDocumentsByQuerry() {
     const int doc_id = 12;
     const string content = "cat in the city";
     const vector<int> ratings = { 1, 2, 3 };
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
         const string query_test = "cat"s;
-        tuple<vector<string>, DocumentStatus> expected = srv.MatchDocument(query_test, 12);
+        tuple<vector<string>, DocumentStatus> expected = server.MatchDocument(query_test, 12);
+        vector<string> a;
+        DocumentStatus b;
+        tie(a, b) = expected;       // tuple decomposing
 
-        const vector<string> a = get<0>(expected);
-        const DocumentStatus b = get<1>(expected);
+        ASSERT_EQUAL(a.size(), 1u);
         ASSERT_EQUAL(a[0], "cat"s);
         ASSERT_EQUAL(b, DocumentStatus::ACTUAL);
-        ASSERT_EQUAL(a.size(), 1);
     }
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
         const string query_test = "cat city"s;
-        tuple<vector<string>, DocumentStatus> expected = srv.MatchDocument(query_test, 12);
+        tuple<vector<string>, DocumentStatus> expected = server.MatchDocument(query_test, 12);
 
         const vector<string> a = get<0>(expected);
+        ASSERT_EQUAL(a.size(), 2u);
         ASSERT_EQUAL(a[0], "cat"s);
         ASSERT_EQUAL(a[1], "city"s);
-        ASSERT_EQUAL(a.size(), 2);
     }
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
         const string query_test = "cat city -in"s;
-        tuple<vector<string>, DocumentStatus> expected = srv.MatchDocument(query_test, 12);
+        tuple<vector<string>, DocumentStatus> expected = server.MatchDocument(query_test, 12);
 
         const vector<string> a = get<0>(expected);
-        ASSERT_EQUAL(a.size(), 0);
+        ASSERT_EQUAL(a.size(), 0u);
     }
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
         const string query_test = "cat cat"s;
-        tuple<vector<string>, DocumentStatus> expected = srv.MatchDocument(query_test, 12);
+        tuple<vector<string>, DocumentStatus> expected = server.MatchDocument(query_test, 12);
 
         const vector<string> a = get<0>(expected);
+        ASSERT_EQUAL(a.size(), 1u);
         ASSERT_EQUAL(a[0], "cat"s);
-        ASSERT_EQUAL(a.size(), 1);
-    }
-    {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::IRRELEVANT, ratings);
-        const string query_test = "cat"s;
-        tuple<vector<string>, DocumentStatus> expected = srv.MatchDocument(query_test, 12);
-
-        const vector<string> a = get<0>(expected);
-        const DocumentStatus b = get<1>(expected);
-        ASSERT_EQUAL(a[0], "cat"s);
-        ASSERT_EQUAL(b, DocumentStatus::IRRELEVANT);
-        ASSERT_EQUAL(a.size(), 1);
     }
 }
 
-void TestSortRelevance() {
+void TestSortResultsByRelevance() {
     const int doc_id1 = 12;
     const string content1 = "cat in the city";
     const vector<int> ratings1 = { 1, 2, 3 };
     const int doc_id2 = 13;
     const string content2 = "dog out woods city";
     const vector<int> ratings2 = { 1, 3, 5 };
+    const int doc_id3 = 14;
+    const string content3 = "cat the city";
+    const vector<int> ratings3 = { 2, 3, 4 };
+    const int doc_id4 = 15;
+    const string content4 = "wolf sea boat";
+    const vector<int> ratings4 = { 6, 7, 8 };
 
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
-        srv.AddDocument(doc_id2, content2, DocumentStatus::ACTUAL, ratings2);
+        SearchServer server;
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
+        server.AddDocument(doc_id2, content2, DocumentStatus::ACTUAL, ratings2);
+        server.AddDocument(doc_id3, content3, DocumentStatus::ACTUAL, ratings3);
+        server.AddDocument(doc_id4, content4, DocumentStatus::ACTUAL, ratings4);
 
-        vector<Document> result = srv.FindTopDocuments("city cat"s);
-        ASSERT_EQUAL(result[0].id, 12);
-        ASSERT_EQUAL(result.size(), 2);
-    }
-    {
-        SearchServer srv;
-        srv.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
-        srv.AddDocument(doc_id2, content2, DocumentStatus::ACTUAL, ratings2);
-
-        vector<Document> result = srv.FindTopDocuments("city dog"s);
-        ASSERT_EQUAL(result[0].id, 13);
-        ASSERT_EQUAL(result.size(), 2);
-    }
-    {
-        SearchServer srv;
-        srv.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
-        srv.AddDocument(doc_id2, content2, DocumentStatus::ACTUAL, ratings2);
-
-        vector<Document> result = srv.FindTopDocuments("dog"s);
-        ASSERT_EQUAL(result[0].id, 13);
-        ASSERT_EQUAL(result.size(), 1);
-    }
-    {
-        SearchServer srv;
-        srv.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
-        srv.AddDocument(doc_id2, content2, DocumentStatus::ACTUAL, ratings2);
-
-        vector<Document> result = srv.FindTopDocuments("dog cat -woods"s);
-        ASSERT_EQUAL(result[0].id, 12);
-        ASSERT_EQUAL(result.size(), 1);
-    }
-    {
-        SearchServer srv;
-        srv.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
-        srv.AddDocument(doc_id2, content2, DocumentStatus::ACTUAL, ratings2);
-
-        vector<Document> result = srv.FindTopDocuments("dog cat -city"s);
-        ASSERT_EQUAL(result.size(), 0);
+        vector<Document> result = server.FindTopDocuments("city cat"s);
+        ASSERT_EQUAL(result.size(), 3u);
+        ASSERT_EQUAL(result[0].id, 14);
+        ASSERT_EQUAL(result[1].id, 12);
+        ASSERT_EQUAL(result[2].id, 13);
+        ASSERT(result[0].relevance >= result[1].relevance && result[1].relevance >= result[2].relevance);
+        //double rel1 = 0.32694308433724206;
+        //ASSERT_EQUAL(result[0].relevance, rel1);
+        //double rel2 = 0.24520731325293155;
+        //ASSERT_EQUAL(result[1].relevance, rel2);
+        //double rel3 = 0.071920518112945211;
+        //ASSERT_EQUAL(result[2].relevance, rel3);              // too much. Here just sort checking. Relevance calculation check in corresponding test hereinafter
     }
 }
 
-void TestAverageRating() {
+void TestAverageRatingCalculation() {
     const int doc_id = 12;
     const string content = "cat in the city";
     
     {
-        SearchServer srv;
+        SearchServer server;
         const vector<int> ratings = { 1, 2, 3 };
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        vector<Document> res = srv.FindTopDocuments("cat");
-
-        ASSERT_EQUAL(res.size(), 1);
-        ASSERT_EQUAL(res[0].rating, 2);
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        vector<Document> res = server.FindTopDocuments("cat");
+        ASSERT_EQUAL(res.size(), 1u);
+        int test_rating = accumulate(ratings.begin(), ratings.end(), 0) / static_cast<int>(ratings.size());
+        ASSERT_EQUAL(res[0].rating, test_rating);
     }    
     {
-        SearchServer srv;
-        const vector<int> ratings = { 1, 2, 4 };
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        vector<Document> res = srv.FindTopDocuments("cat");
-
-        ASSERT_EQUAL(res.size(), 1);
-        ASSERT_EQUAL(res[0].rating, 2);
+        SearchServer server;            // negative ratings
+        const vector<int> ratings = { -1, -2, -4 };
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        vector<Document> res = server.FindTopDocuments("cat");
+        ASSERT_EQUAL(res.size(), 1u);        
+        int test_rating = accumulate(ratings.begin(), ratings.end(), 0) / static_cast<int>(ratings.size());
+        ASSERT_EQUAL(res[0].rating, test_rating);
     }    
     {
-        SearchServer srv;
-        const vector<int> ratings = { 1, 2, 5 };
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        vector<Document> res = srv.FindTopDocuments("cat");
-
-        ASSERT_EQUAL(res.size(), 1);
-        ASSERT_EQUAL(res[0].rating, 2);
-    }    
-    {
-        SearchServer srv;
-        const vector<int> ratings = { 1, 2, 6 };
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        vector<Document> res = srv.FindTopDocuments("cat");
-
-        ASSERT_EQUAL(res.size(), 1);
-        ASSERT_EQUAL(res[0].rating, 3);
+        SearchServer server;        // Empty ratings
+        vector<int> ratings;
+        ratings.clear();
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        vector<Document> res = server.FindTopDocuments("cat");
+        ASSERT_EQUAL(res.size(), 1u);
+        ASSERT_EQUAL(res[0].rating, 0);
     }    
 
     const int doc_id1 = 13;
     const string content1 = "dog out woods city";
 
     {
-        SearchServer srv;
+        SearchServer server;
         const vector<int> ratings = { 0, 1, 2 };
         const vector<int> ratings1 = { 3, 4, 5 };
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        srv.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
-        vector<Document> res = srv.FindTopDocuments("city cat");
-
-        ASSERT_EQUAL(res.size(), 2);
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings1);
+        vector<Document> res = server.FindTopDocuments("city cat");
+        ASSERT_EQUAL(res.size(), 2u);
         ASSERT_EQUAL(res[0].rating, 1);
         ASSERT_EQUAL(res[1].rating, 4);
     }
-
 }
 
-void TestPredicat() {
+void TestFindingDocumentByPredicate() {
     const int doc_id = 12, doc_id1 = 13;
     const string content = "cat in the city", content1 = "dog out woods city";
     vector<int> ratings = { 1, 2, 3 };
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        srv.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings);
-        vector<Document> res = srv.FindTopDocuments("cat"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; });
-
-        ASSERT_EQUAL(res.size(), 1);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings);
+        vector<Document> res = server.FindTopDocuments("cat"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; });
+        ASSERT_EQUAL(res.size(), 1u);
         ASSERT_EQUAL(res[0].id, 12);
     }   
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        srv.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings);
-        vector<Document> res = srv.FindTopDocuments("city"s, [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
-
-        ASSERT_EQUAL(res.size(), 2);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings);
+        vector<Document> res = server.FindTopDocuments("city"s, [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
+        ASSERT_EQUAL(res.size(), 2u);
         ASSERT_EQUAL(res[0].id, 12);
         ASSERT_EQUAL(res[1].id, 13);
     }
 }
-void TestStatus() {
+
+void TestFindingDocumentByStatus() {
     const int doc_id = 12, doc_id1 = 13;
     const string content = "cat in the city", content1 = "dog out woods city";
     vector<int> ratings = { 1, 2, 3 };
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        srv.AddDocument(doc_id1, content1, DocumentStatus::IRRELEVANT, ratings);
-
-        vector<Document> res = srv.FindTopDocuments("city"s, DocumentStatus::ACTUAL);
-
-        ASSERT_EQUAL(res.size(), 1);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        server.AddDocument(doc_id1, content1, DocumentStatus::IRRELEVANT, ratings);
+        vector<Document> res = server.FindTopDocuments("city"s, DocumentStatus::ACTUAL);
+        ASSERT_EQUAL(res.size(), 1u);
         ASSERT_EQUAL(res[0].id, 12);
     }
 }
 
-void TestRelevance() {
+void TestRelevanceCalculation() {
     const int doc_id = 12, doc_id1 = 13;
     const string content = "cat in the city", content1 = "dog out woods city";
     vector<int> ratings = { 1, 2, 3 };
     {
-        SearchServer srv;
-        srv.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        srv.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings);
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        server.AddDocument(doc_id1, content1, DocumentStatus::ACTUAL, ratings);
+        vector<Document> res = server.FindTopDocuments("cat city"s);
+        ASSERT_EQUAL(res.size(), 2u);
 
-        vector<Document> res = srv.FindTopDocuments("cat city"s);
+        double test_idf_cat = log(2.0 / 1.0); // ( doc count / docs with word "cat" )
+        double test_idf_city = log(2.0 / 2.0); // ( doc count / docs with word "city" )      log(1) == 0
+        double test_tf_cat_doc0 = 1.0 / 4.0;     // ( word "cat" count / number of words ) in doc 0
+        double test_tf_cat_doc1 = 0.0 / 4.0;     // ( word "cat" count / number of words ) in doc 1
+        double test_tf_city_doc0 = 1.0 / 4.0;     // ( word "city" count / number of words ) in doc 0
+        double test_tf_city_doc1 = 1.0 / 4.0;     // ( word "city" count / number of words ) in doc 1
 
-        ASSERT_EQUAL(res.size(), 2);
-        double DELTA = (res[0].relevance - 0.173287);
-        ASSERT_HINT(DELTA < 1e-6 && DELTA > -1e-6, "Relevance error"s);
-        ASSERT_EQUAL(res[1].relevance, 0);
+        double test_relevance_doc0 = test_idf_cat * test_tf_cat_doc0 + test_idf_city * test_tf_city_doc0;        // 0.17328679513998632
+        double DELTA0 = abs((res[0].relevance - test_relevance_doc0));
+        ASSERT_HINT(DELTA0 < 1e-6, "Relevance calculation error! Doc relevance ("s + to_string(res[1].relevance) + ") != expected ("s + to_string(test_relevance_doc0) + ")");
+
+        double test_relevance_doc1 = test_idf_cat * test_tf_cat_doc1 + test_idf_city * test_tf_city_doc1;        // 0
+        double DELTA1 = abs((res[1].relevance - test_relevance_doc1));
+        ASSERT_HINT(DELTA1 < 1e-6, "Relevance calculation error! Doc relevance ("s + to_string(res[1].relevance) + ") != expected ("s + to_string(test_relevance_doc1) +")");
     }
 }
 
@@ -600,13 +567,13 @@ void TestRelevance() {
 // Функция TestSearchServer является точкой входа для запуска тестов
 void TestSearchServer() {
     RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
-    RUN_TEST(TestMinusWords);
-    RUN_TEST(TestMatching);
-    RUN_TEST(TestSortRelevance);
-    RUN_TEST(TestAverageRating);
-    RUN_TEST(TestPredicat);
-    RUN_TEST(TestStatus);
-    RUN_TEST(TestRelevance);
+    RUN_TEST(TestExcludeDocumentsByMinusWords);
+    RUN_TEST(TestMatchingDocumentsByQuerry);
+    RUN_TEST(TestSortResultsByRelevance);
+    RUN_TEST(TestAverageRatingCalculation);
+    RUN_TEST(TestFindingDocumentByPredicate);
+    RUN_TEST(TestFindingDocumentByStatus);
+    RUN_TEST(TestRelevanceCalculation);
     // Не забудьте вызывать остальные тесты здесь
 }
 
