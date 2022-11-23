@@ -69,8 +69,6 @@ enum class DocumentStatus {     // enum for statuses
 
 class SearchServer {
 public:
-    inline static constexpr int INVALID_DOCUMENT_ID = -1;
-
     void SetStopWords(const string& text) {
         for (const string& word : SplitIntoWords(text)) {
             stop_words_.insert(word);
@@ -81,8 +79,7 @@ public:
 
         if (document_id < 0) throw invalid_argument("Negative ID"s);
         if (documents_.count(document_id)) throw invalid_argument("ID already exist"s);
-        if (!CheckSpecialSymbols(document)) throw invalid_argument("Special symbol in AddDocument (my method)"s);
-        if (!IsValidWord(document)) throw invalid_argument("Special symbol in AddDocument (Yandex method)"s);
+        if (!IsValidWord(document)) throw invalid_argument("Special symbol in AddDocument"s);
 
         ids_.push_back(document_id);
 
@@ -92,16 +89,11 @@ public:
             word_to_document_freqs_[word][document_id] += inv_word_count;
         }
         documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-        //return true;
     }
     
     template <typename Predicate>
     vector<Document> FindTopDocuments(const string& raw_query, Predicate predicate) const {
         // predicat - функтор. Должен возвращать bool и принимать много всего из лямбды в точке вызова
-        if (!CheckDoubleMinus(raw_query)) throw invalid_argument("Double minus in FindTopDocument()"s);
-        if (!CheckNoMinusWord(raw_query)) throw invalid_argument("No word after minus in FindTopDocument()"s);
-        if (!CheckSpecialSymbols(raw_query)) throw invalid_argument("Special symbol in FindTopDocuments() (my method)"s);
-        if (!IsValidWord(raw_query)) throw invalid_argument("Special symbol in FindTopDocuments() (Yandex method)"s);
 
         const Query query = ParseQuery(raw_query);
 
@@ -126,20 +118,13 @@ public:
 
     vector<Document> FindTopDocuments(const string& raw_query) const {
         return FindTopDocuments(raw_query, [](int document_id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
-        //return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
     }
-
 
     int GetDocumentCount() const {
         return static_cast<int>(documents_.size());
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
-        if (!CheckDoubleMinus(raw_query)) throw invalid_argument("Double minus in MatchDocument()"s);
-        if (!CheckNoMinusWord(raw_query)) throw invalid_argument("No word after minus in MatchDocument()"s);
-        if (!CheckSpecialSymbols(raw_query)) throw invalid_argument("Special symbol in MatchDocuments() (my method)"s);
-        if (!IsValidWord(raw_query)) throw invalid_argument("Special symbol in MatchDocuments() (Yandex method)"s);
-
         const Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
@@ -167,9 +152,6 @@ public:
             throw out_of_range("Wrong document id in GetDocumentId()"s);
         }
 
-        //map<int, DocumentData>::const_iterator it = documents_.cbegin();      // След от неоднозначно изложенного задания
-        //for (; index > 0; --index) ++it;
-        //return (*it).first;
             return ids_[index];
         
     }
@@ -177,7 +159,6 @@ public:
 public:         // constructors
 
     explicit SearchServer(const string& stop_words) {
-        if (!CheckSpecialSymbols(stop_words)) throw invalid_argument("Special symbol in constructor (my method)"s);
         if (!IsValidWord(stop_words)) throw invalid_argument("Special symbol in constructor (Yandex method)"s);
         SetStopWords(stop_words);
     }
@@ -187,7 +168,7 @@ public:         // constructors
         if (stop_words_container.empty()) return;
 
         for (string word : stop_words_container) {
-            if (CheckSpecialSymbols(word) && IsValidWord(word)) stop_words_.insert(word);
+            if (/*CheckSpecialSymbols(word) && */IsValidWord(word)) stop_words_.insert(word);
             else throw invalid_argument("Special symbol in template constructor"s);
         }
 
@@ -250,6 +231,11 @@ private:
     };
 
     Query ParseQuery(const string& text) const {
+
+        if (!CheckDoubleMinus(text)) throw invalid_argument("Double minus in ParseQuery()"s);
+        if (!CheckNoMinusWord(text)) throw invalid_argument("No word after minus in ParseQuery()"s);
+        if (!IsValidWord(text)) throw invalid_argument("Special symbol in ParseQuery()"s);
+
         Query query;
         for (const string& word : SplitIntoWords(text)) {
             const QueryWord query_word = ParseQueryWord(word);
@@ -302,18 +288,6 @@ private:
                 { document_id, relevance, documents_.at(document_id).rating });
         }
         return matched_documents;
-    }
-
-    [[nodiscard]] bool CheckSpecialSymbols(const string& in) const {
-
-        unsigned int let_num = 0;
-        for (const char letter : in) {
-            let_num = static_cast<unsigned int>(letter);
-            //if (let_num < 32 || (let_num > 32 && let_num < 65) || (let_num > 90 && let_num < 97) || (let_num > 122 && let_num < 4294967232)) return false;
-            if (let_num < 32) return false;
-        }
-
-        return true;
     }
 
     static bool IsValidWord(const string& word) {
