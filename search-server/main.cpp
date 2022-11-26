@@ -185,7 +185,7 @@ private:
     map<string, map<int, double>> word_to_document_freqs_;      // map < word, < id , freq > >
     map<int, DocumentData> documents_;                          // map < id, < rating, status >>
 
-    vector<int> ids_;               // КОСТЫЛЬ!!!!!! Я не хотел, меня заставили 
+    vector<int> ids_;               // КОСТЫЛЬ!!!!!! Я не хотел, меня заставили
 
     bool IsStopWord(const string& word) const {
         return stop_words_.count(word) > 0;
@@ -232,13 +232,15 @@ private:
 
     Query ParseQuery(const string& text) const {
 
-        if (!CheckDoubleMinus(text)) throw invalid_argument("Double minus in ParseQuery()"s);
-        if (!CheckNoMinusWord(text)) throw invalid_argument("No word after minus in ParseQuery()"s);
-        if (!IsValidWord(text)) throw invalid_argument("Special symbol in ParseQuery()"s);
-
         Query query;
         for (const string& word : SplitIntoWords(text)) {
             const QueryWord query_word = ParseQueryWord(word);
+
+            if (query_word.is_minus && query_word.data[0]=='-') throw invalid_argument("Double minus in ParseQuery()"s);
+            if (!IsValidWord(query_word.data)) throw invalid_argument("Special symbol in ParseQuery()"s);
+            if (query_word.is_minus && query_word.data.empty()) throw invalid_argument("No word after minus in ParseQuery()"s);
+
+
             if (!query_word.is_stop) {
                 if (query_word.is_minus) {
                     query.minus_words.insert(query_word.data);
