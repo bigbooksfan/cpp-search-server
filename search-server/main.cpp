@@ -15,15 +15,15 @@ int main() {
     search_server.AddDocument(3, std::string{ "big cat fancy collar " }, DocumentStatus::ACTUAL, { 1, 2, 8 });
     search_server.AddDocument(4, std::string{ "big dog sparrow Eugene" }, DocumentStatus::ACTUAL, { 1, 3, 2 });
     search_server.AddDocument(5, std::string{ "big dog sparrow Vasiliy" }, DocumentStatus::ACTUAL, { 1, 1, 1 });
-    // 1439 Р·Р°РїСЂРѕСЃРѕРІ СЃ РЅСѓР»РµРІС‹Рј СЂРµР·СѓР»СЊС‚Р°С‚РѕРј
+    // 1439 запросов с нулевым результатом
     for (int i = 0; i < 1439; ++i) {
         request_queue.AddFindRequest(std::string{ "empty request" });
     }
-    // РІСЃРµ РµС‰Рµ 1439 Р·Р°РїСЂРѕСЃРѕРІ СЃ РЅСѓР»РµРІС‹Рј СЂРµР·СѓР»СЊС‚Р°С‚РѕРј
+    // все еще 1439 запросов с нулевым результатом
         request_queue.AddFindRequest(std::string{ "curly dog" });
-    // РЅРѕРІС‹Рµ СЃСѓС‚РєРё, РїРµСЂРІС‹Р№ Р·Р°РїСЂРѕСЃ СѓРґР°Р»РµРЅ, 1438 Р·Р°РїСЂРѕСЃРѕРІ СЃ РЅСѓР»РµРІС‹Рј СЂРµР·СѓР»СЊС‚Р°С‚РѕРј
+    // новые сутки, первый запрос удален, 1438 запросов с нулевым результатом
     request_queue.AddFindRequest(std::string{ "big collar" });
-    // РїРµСЂРІС‹Р№ Р·Р°РїСЂРѕСЃ СѓРґР°Р»РµРЅ, 1437 Р·Р°РїСЂРѕСЃРѕРІ СЃ РЅСѓР»РµРІС‹Рј СЂРµР·СѓР»СЊС‚Р°С‚РѕРј
+    // первый запрос удален, 1437 запросов с нулевым результатом
     request_queue.AddFindRequest(std::string{ "sparrow" });
     std::cout << std::string{ "Total empty requests: " } << request_queue.GetNoResultRequests() << std::endl;
     return 0;

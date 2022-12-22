@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 template <typename Iterator>
 class Paginator {
 public:
@@ -12,37 +14,43 @@ public:
             }
             else {
                 tmp = IteratorRange<Iterator>(It, end);
-                curr.push_back(tmp);
+                curr_.push_back(tmp);
                 break;
             }
-            curr.push_back(tmp);
+            curr_.push_back(tmp);
         }
     }
 
 public:
     auto begin() const {
-        return curr.begin();
+        return curr_.begin();
     }
 
     auto end() const {
-        return curr.end();
+        return curr_.end();
     }
 
     int size() const {
-        return curr.size();
+        return curr_.size();
     }
 
     bool empty() const {
-        return curr.size() == 0 ? true : false;
+        return curr_.size() == 0 ? true : false;
     }
 
 private:
 
-    std::vector<IteratorRange<Iterator>> curr;
+    std::vector<IteratorRange<Iterator>> curr_;
 
 };
 
 template <typename Container>
 auto Paginate(const Container& c, size_t page_size) {
     return Paginator(begin(c), end(c), page_size);
+}
+
+template<typename Iterator>
+std::ostream& operator<< (std::ostream& os, const IteratorRange<Iterator>& out) {
+    for (Iterator It = out.begin(); It < out.end(); ++It) os << *It;
+    return os;
 }
