@@ -27,8 +27,3 @@ private:
 
 };
 
-template<typename Iterator>
-std::ostream& operator<< (std::ostream& os, const IteratorRange<Iterator>& out) {
-    for (Iterator It = out.begin(); It < out.end(); ++It) os << *It;
-    return os;
-}

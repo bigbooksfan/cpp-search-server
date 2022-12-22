@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vector>
 #include <string>
 #include <deque>
 #include <algorithm>
@@ -25,8 +24,8 @@ public:
 
 private:
     struct QueryResult {
-        int number_;
-        bool empty_;
+        int number;
+        bool empty;
     };
     std::deque<QueryResult> requests_;
     const static int min_in_day_ = 1440;

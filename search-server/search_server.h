@@ -8,22 +8,21 @@
 #include <map>
 #include <numeric>
 #include <algorithm>
+#include <cmath>
 
 #include "document.h"
 #include "string_processing.h"
-
-using std::string;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 
 class SearchServer {
 public:
-    void SetStopWords(const string& text);
+    void SetStopWords(const std::string& text);
 
-    void AddDocument(int document_id, const string& document, DocumentStatus status, const std::vector<int>& ratings);
+    void AddDocument(int document_id, const std::string& document, DocumentStatus status, const std::vector<int>& ratings);
 
     template <typename Predicate>
-    std::vector<Document> FindTopDocuments(const string& raw_query, Predicate predicate) const {
+    std::vector<Document> FindTopDocuments(const std::string& raw_query, Predicate predicate) const {
         // predicate - функтор. Должен возвращать bool и принимать много всего из лямбды в точке вызова
 
         const Query query = ParseQuery(raw_query);
@@ -32,7 +31,7 @@ public:
 
         std::sort(matched_documents.begin(), matched_documents.end(),
             [](const Document& lhs, const Document& rhs) {
-                if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                if (std::abs(lhs.relevance - rhs.relevance) < 1e-6) {
                     return lhs.rating > rhs.rating;
                 }
         return lhs.relevance > rhs.relevance;
@@ -43,25 +42,25 @@ public:
         return matched_documents;
     }
 
-    std::vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus stat) const;
+    std::vector<Document> FindTopDocuments(const std::string& raw_query, DocumentStatus stat) const;
 
-    std::vector<Document> FindTopDocuments(const string& raw_query) const;
+    std::vector<Document> FindTopDocuments(const std::string& raw_query) const;
 
     int GetDocumentCount() const;
 
-    std::tuple<std::vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const;
+    std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(const std::string& raw_query, int document_id) const;
 
     int GetDocumentId(int index) const;
 
 public:         // constructors
 
-    explicit SearchServer(const string& stop_words);
+    explicit SearchServer(const std::string& stop_words);
 
     template<typename T>
     explicit SearchServer(const T& stop_words_container) {
         if (stop_words_container.empty()) return;
 
-        for (string word : stop_words_container) {
+        for (std::string word : stop_words_container) {
             if (/*CheckSpecialSymbols(word) && */IsValidWord(word)) stop_words_.insert(word);
             else throw std::invalid_argument("Special symbol in template constructor");
         }
@@ -73,41 +72,41 @@ private:
         DocumentStatus status;
     };
 
-    std::set<string> stop_words_;
-    std::map<string, std::map<int, double>> word_to_document_freqs_;      // map < word, < id , freq > >
+    std::set<std::string> stop_words_;
+    std::map<std::string, std::map<int, double>> word_to_document_freqs_;      // map < word, < id , freq > >
     std::map<int, DocumentData> documents_;                          // map < id, < rating, status >>
 
     std::vector<int> ids_;               // КОСТЫЛЬ!!!!!! Я не хотел, меня заставили
 
-    bool IsStopWord(const string& word) const;
+    bool IsStopWord(const std::string& word) const;
 
-    std::vector<string> SplitIntoWordsNoStop(const string& text) const;
+    std::vector<std::string> SplitIntoWordsNoStop(const std::string& text) const;
 
     static int ComputeAverageRating(const std::vector<int>& ratings);
 
     struct QueryWord {
-        string data;
+        std::string data;
         bool is_minus = true;
         bool is_stop = true;
     };
 
-    QueryWord ParseQueryWord(string text) const;
+    QueryWord ParseQueryWord(std::string text) const;
 
     struct Query {
-        std::set<string> plus_words;
-        std::set<string> minus_words;
+        std::set<std::string> plus_words;
+        std::set<std::string> minus_words;
     };
 
-    Query ParseQuery(const string& text) const;
+    Query ParseQuery(const std::string& text) const;
 
     // Existence required
-    double ComputeWordInverseDocumentFreq(const string& word) const;
+    double ComputeWordInverseDocumentFreq(const std::string& word) const;
 
     template <typename Predicate>
     std::vector<Document> FindAllDocuments(const Query& query, Predicate predicate) const {                // predicate from lambda rethrowed here
 
         std::map<int, double> document_to_relevance;
-        for (const string& word : query.plus_words) {
+        for (const std::string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -120,7 +119,7 @@ private:
             }
         }
 
-        for (const string& word : query.minus_words) {                                              // docs with minus-words removing
+        for (const std::string& word : query.minus_words) {                                              // docs with minus-words removing
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -137,9 +136,9 @@ private:
         return matched_documents;
     }
 
-    static bool IsValidWord(const string& word);
+    static bool IsValidWord(const std::string& word);
 
-    [[nodiscard]] bool CheckDoubleMinus(const string& in) const;
+    [[nodiscard]] bool CheckDoubleMinus(const std::string& in) const;
 
-    [[nodiscard]] bool CheckNoMinusWord(const string& in) const;
+    [[nodiscard]] bool CheckNoMinusWord(const std::string& in) const;
 };
