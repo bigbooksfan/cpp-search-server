@@ -10,8 +10,8 @@ void RequestQueue::AddFindRequest(const std::string& raw_query) {
 }
 
 int RequestQueue::GetNoResultRequests() const {
-    return std::count_if(requests_.begin(), requests_.end(), 
-        [](QueryResult a) { return a.empty; });
+    return static_cast<int>(std::count_if(requests_.begin(), requests_.end(), 
+        [](QueryResult a) { return a.empty; }));
 }
 
 void RequestQueue::AddLine(bool is_empty) {
