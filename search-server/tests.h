@@ -485,8 +485,9 @@ namespace MyUnitTests {
     }
 
 #endif
-#if 1
 
+#if 0   // method removed
+    
     void TestGetDocIDByNumber() {
         const string content0 = "aaa";
         const string content1 = "bbb";
@@ -556,7 +557,7 @@ namespace MyUnitTests {
         RUN_TEST(TestRelevanceCalculation);
         RUN_TEST(TestServerConstructingByContqainers);
         RUN_TEST(TestAddDocuments);
-        RUN_TEST(TestGetDocIDByNumber);
+        //RUN_TEST(TestGetDocIDByNumber);           // method removed
         // Не забудьте вызывать остальные тесты здесь
     }
 #endif
