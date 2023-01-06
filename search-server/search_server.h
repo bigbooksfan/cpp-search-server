@@ -12,18 +12,55 @@
 
 #include "document.h"
 #include "string_processing.h"
+#include "log_duration.h"
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 
 class SearchServer {
-public:
+
+private:            // fields
+    struct DocumentData {                                       // struct < int rating, enum DocStatus status >
+        int rating = 0;
+        DocumentStatus status;
+    };
+
+    struct QueryWord {
+        std::string data;
+        bool is_minus = true;
+        bool is_stop = true;
+    };
+
+    struct Query {
+        std::set<std::string> plus_words;
+        std::set<std::string> minus_words;
+    };
+
+    std::set<std::string> stop_words_;
+    std::map<std::string, std::map<int, double>> word_to_document_freqs_;      // map < word, < id , freq > >
+    std::map<int, DocumentData> documents_;                          // map < id, < rating, status >>
+
+    std::vector<int> ids_;
+
+    std::map<int, std::set<std::string>> words_of_docs_;        // for RemoveDuplicates()
+
+public:      // methods
+
+    std::vector<int>::const_iterator begin();
+    std::vector<int>::const_iterator end();
+
+    const std::map<std::string, double> GetWordFrequencies(int document_id) const;
+ // const - for return type                                                 const - for calling on const object
+
+    void RemoveDocument(int document_id);
+
+    const std::vector<int> CheckDuplicatesInside();
+
     void SetStopWords(const std::string& text);
 
     void AddDocument(int document_id, const std::string& document, DocumentStatus status, const std::vector<int>& ratings);
 
     template <typename Predicate>
     std::vector<Document> FindTopDocuments(const std::string& raw_query, Predicate predicate) const {
-        // predicate - функтор. Должен возвращать bool и принимать много всего из лямбды в точке вызова
 
         const Query query = ParseQuery(raw_query);
 
@@ -50,7 +87,7 @@ public:
 
     std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(const std::string& raw_query, int document_id) const;
 
-    int GetDocumentId(int index) const;
+    //int GetDocumentId(int index) const;
 
 public:         // constructors
 
@@ -66,17 +103,8 @@ public:         // constructors
         }
     }
 
-private:
-    struct DocumentData {                                       // struct < int rating, enum DocStatus status >
-        int rating = 0;
-        DocumentStatus status;
-    };
 
-    std::set<std::string> stop_words_;
-    std::map<std::string, std::map<int, double>> word_to_document_freqs_;      // map < word, < id , freq > >
-    std::map<int, DocumentData> documents_;                          // map < id, < rating, status >>
-
-    std::vector<int> ids_;               // КОСТЫЛЬ!!!!!! Я не хотел, меня заставили
+private:            // methods
 
     bool IsStopWord(const std::string& word) const;
 
@@ -84,27 +112,16 @@ private:
 
     static int ComputeAverageRating(const std::vector<int>& ratings);
 
-    struct QueryWord {
-        std::string data;
-        bool is_minus = true;
-        bool is_stop = true;
-    };
-
     QueryWord ParseQueryWord(std::string text) const;
-
-    struct Query {
-        std::set<std::string> plus_words;
-        std::set<std::string> minus_words;
-    };
 
     Query ParseQuery(const std::string& text) const;
 
-    // Existence required
     double ComputeWordInverseDocumentFreq(const std::string& word) const;
 
     template <typename Predicate>
     std::vector<Document> FindAllDocuments(const Query& query, Predicate predicate) const {                // predicate from lambda rethrowed here
 
+        //LOG_DURATION_STREAM("Operation time", std::cerr);                                         // IT WORKS!
         std::map<int, double> document_to_relevance;
         for (const std::string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {

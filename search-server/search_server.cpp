@@ -1,9 +1,91 @@
 #include "search_server.h"
 
+#include <algorithm>
+
+std::vector<int>::const_iterator SearchServer::begin()
+{
+    return ids_.begin();
+}
+
+std::vector<int>::const_iterator SearchServer::end()
+{
+    return ids_.end();
+}
+
+const std::map<std::string, double> SearchServer::GetWordFrequencies(int document_id) const
+{
+    std::map<std::string, double> ret;
+    for (const auto word : word_to_document_freqs_) {
+        if (word.second.count(document_id)) ret.emplace(word.first, word.second.at(document_id));
+    }
+    return ret;
+}
+
+void SearchServer::RemoveDocument(int document_id)
+{
+
+    for (auto word : word_to_document_freqs_) {
+        if (word.second.count(document_id)) word.second.erase(document_id);
+    }
+    if (documents_.count(document_id)) documents_.erase(document_id);
+    
+    for (std::vector<int>::iterator It = ids_.begin(); It != ids_.end(); ) {
+        if (*It == document_id) {
+            It = ids_.erase(It);
+            //continue;
+        }
+        else ++It;
+    }
+
+    if (words_of_docs_.count(document_id)) words_of_docs_.erase(document_id);
+
+}
+
 void SearchServer::SetStopWords(const std::string& text) {
     for (const std::string& word : SplitIntoWords(text)) {
         stop_words_.insert(word);
     }
+}
+
+const std::vector<int> SearchServer::CheckDuplicatesInside()
+{
+    std::vector<int> ret;
+
+    std::map<int, std::set<std::string>>::const_iterator pre_end = words_of_docs_.end();
+    if (pre_end != words_of_docs_.begin()) --pre_end;
+    else throw std::out_of_range("Something wrong with (words_of_docs_) size!");
+
+    for (std::map<int, std::set<std::string>>::const_iterator It_slow = words_of_docs_.begin();
+        It_slow != pre_end; ++It_slow) {
+
+        for (std::map<int, std::set<std::string>>::const_iterator It_fast = It_slow;
+            It_fast != pre_end; ) {
+
+            ++It_fast;
+            
+            if ((*It_slow).second.size() != (*It_fast).second.size()) continue;
+            // different number of unique words. Not a twins
+
+            bool flag = true;
+
+            for (std::set<std::string>::const_iterator It_word = (*It_slow).second.begin();
+                It_word != (*It_slow).second.end(); ++It_word) {
+
+                flag = true;
+                if ((*It_fast).second.count(*It_word) == 0) {
+                    flag = false;
+                    break;      // slow and fast - not a twins
+                }
+            }
+
+            if (flag) {
+                int twin_id = std::max((*It_slow).first, (*It_fast).first);
+                ret.push_back(twin_id);
+            }
+        }
+    }
+
+    return ret;
 }
 
 void SearchServer::AddDocument(int document_id, const std::string& document, DocumentStatus status, const std::vector<int>& ratings) {
@@ -20,6 +102,9 @@ void SearchServer::AddDocument(int document_id, const std::string& document, Doc
         word_to_document_freqs_[word][document_id] += inv_word_count;
     }
     documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
+
+    std::set<std::string> wordset(words.begin(), words.end());
+    words_of_docs_.emplace(document_id, wordset);
 }
 
 std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query, DocumentStatus stat) const {
@@ -57,12 +142,12 @@ std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument
     return std::make_tuple(matched_words, documents_.at(document_id).status);
 }
 
-int SearchServer::GetDocumentId(int index) const {
-    if (index < 0 || index > documents_.size()) {
-        throw std::out_of_range("Wrong document id in GetDocumentId()");
-    }
-    return ids_[index];
-}
+//int SearchServer::GetDocumentId(int index) const {
+//    if (index < 0 || index > documents_.size()) {
+//        throw std::out_of_range("Wrong document id in GetDocumentId()");
+//    }
+//    return ids_[index];
+//}
 
 SearchServer::SearchServer(const std::string& stop_words) {          // explicit
     if (!IsValidWord(stop_words)) throw std::invalid_argument("Special symbol in constructor (Yandex method)");
