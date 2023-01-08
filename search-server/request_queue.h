@@ -13,7 +13,9 @@ public:
     
     template <typename DocumentPredicate>
     void AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate) {
-        if (!requests_.empty() && requests_.size() >= min_in_day_) requests_.pop_front();
+        if (!requests_.empty() && requests_.size() >= min_in_day_) {
+            requests_.pop_front();
+        }
         AddLine(search_server_for_requests.FindTopDocuments(raw_query, document_predicate).empty());
 }
      
