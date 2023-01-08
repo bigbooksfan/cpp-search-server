@@ -18,7 +18,8 @@ const int MAX_RESULT_DOCUMENT_COUNT = 5;
 
 class SearchServer {
 
-private:            // fields
+private:            
+    // fields
     // HINT : struct < int rating, enum DocStatus status >
     struct DocumentData {                                       
         int rating = 0;
@@ -44,19 +45,38 @@ private:            // fields
     // HINT : map < id, < rating, status >>
     std::map<int, DocumentData> documents_;                          
 
-    std::vector<int> ids_;
-    // Do i need it?
-    // std::map<int, std::set<std::string>> words_of_docs_;
+    std::set<int> ids_;
+
+    // methods
+
+    bool IsStopWord(const std::string& word) const;
+
+    std::vector<std::string> SplitIntoWordsNoStop(const std::string& text) const;
+
+    static int ComputeAverageRating(const std::vector<int>& ratings);
+
+    QueryWord ParseQueryWord(std::string text) const;
+
+    Query ParseQuery(const std::string& text) const;
+
+    double ComputeWordInverseDocumentFreq(const std::string& word) const;
+
+    template <typename Predicate>
+    std::vector<Document> FindAllDocuments(const Query& query, Predicate predicate) const;
+
+    static bool IsValidWord(const std::string& word);
+
+    // HINT : map < id , map < word , freq > > 
+    std::map<int, std::map<std::string, double>> words_freqs_overall_;
+
+    static std::map<std::string, double> empty_map_;
 
 public:
 
-    // HINT : map < id , map < word , freq > > 
-    static std::map<int, std::map<std::string, double>> words_freqs_overall_;
+    // methods
 
-public:      // methods
-
-    std::vector<int>::const_iterator begin();
-    std::vector<int>::const_iterator end();
+    std::set<int>::const_iterator begin();
+    std::set<int>::const_iterator end();
 
     const std::map<std::string, double>& GetWordFrequencies(int document_id) const;
  // const - for return type                                                  const - for calling on const object
@@ -78,31 +98,12 @@ public:      // methods
 
     std::tuple<std::vector<std::string>, DocumentStatus> MatchDocument(const std::string& raw_query, int document_id) const;
 
-public:         // constructors
+    // constructors
 
     explicit SearchServer(const std::string& stop_words);
 
     template<typename T>
     explicit SearchServer(const T& stop_words_container);
-
-private:            // methods
-
-    bool IsStopWord(const std::string& word) const;
-
-    std::vector<std::string> SplitIntoWordsNoStop(const std::string& text) const;
-
-    static int ComputeAverageRating(const std::vector<int>& ratings);
-
-    QueryWord ParseQueryWord(std::string text) const;
-
-    Query ParseQuery(const std::string& text) const;
-
-    double ComputeWordInverseDocumentFreq(const std::string& word) const;
-
-    template <typename Predicate>
-    std::vector<Document> FindAllDocuments(const Query& query, Predicate predicate) const;
-   
-    static bool IsValidWord(const std::string& word);
 
 };
 
