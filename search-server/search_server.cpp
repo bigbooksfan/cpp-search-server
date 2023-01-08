@@ -3,44 +3,55 @@
 #include <algorithm>
 
 // static member definition
-std::map<int, std::map<std::string, double>> SearchServer::words_freqs_overall_;
+std::map<std::string, double> SearchServer::empty_map_;
+// static class member should be defined out of class.
+// https://stackoverflow.com/questions/4104544/how-to-access-static-members-of-a-class
 
-std::vector<int>::const_iterator SearchServer::begin()
+std::set<int>::const_iterator SearchServer::begin()
 {
     return ids_.begin();
 }
 
-std::vector<int>::const_iterator SearchServer::end()
+std::set<int>::const_iterator SearchServer::end()
 {
     return ids_.end();
 }
 
 const std::map<std::string, double>& SearchServer::GetWordFrequencies(int document_id) const
 {
-    std::map<std::string, double>& ret = words_freqs_overall_[document_id];
-    return ret;
+
+    return words_freqs_overall_.count(document_id) ? words_freqs_overall_.at(document_id) : empty_map_;
 }
 
 void SearchServer::RemoveDocument(int document_id)
 {
 
-    for (auto word : word_to_document_freqs_) {
+    /*for (auto word : word_to_document_freqs_) {
         if (word.second.count(document_id)) {
             word.second.erase(document_id);
         }
+    }*/
+
+    for (auto [word, _] : GetWordFrequencies(document_id)) {
+        word_to_document_freqs_.at(word).erase(document_id);
     }
+
     if (documents_.count(document_id)) {
         documents_.erase(document_id);
     }
     
-    for (std::vector<int>::iterator it = ids_.begin(); it != ids_.end(); ) {
-        if (*it == document_id) {
-            it = ids_.erase(it);
-        }
-        else {
-            ++it;
-        }
-    }
+    //for (std::set<int>::iterator it = ids_.begin(); it != ids_.end(); ) {
+    //    if (*it == document_id) {
+    //        it = ids_.erase(it);
+    //    }
+    //    else {
+    //        ++it;
+    //    }
+    //}
+
+    ids_.erase(document_id);
+
+    words_freqs_overall_.erase(document_id);
 
 }
 
@@ -62,20 +73,17 @@ void SearchServer::AddDocument(int document_id, const std::string& document, Doc
         throw std::invalid_argument("Special symbol in AddDocument");
     }
 
-    ids_.push_back(document_id);
+    ids_.insert(document_id);
 
+    std::map<std::string, double> wordset;
     const std::vector<std::string> words = SplitIntoWordsNoStop(document);
     const double inv_word_count = 1.0 / words.size();
     for (const std::string& word : words) {
         word_to_document_freqs_[word][document_id] += inv_word_count;
+        wordset.emplace(word, word_to_document_freqs_[word][document_id]);
     }
 
     documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-
-    std::map<std::string, double> wordset;
-    for (const std::string& word : words) {
-        wordset.emplace(word, word_to_document_freqs_[word][document_id]);
-    }
     words_freqs_overall_.emplace(document_id, wordset);
 }
 
