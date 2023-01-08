@@ -19,6 +19,13 @@ int main() {
     search_server.AddDocument(5, std::string{ "big dog sparrow Vasiliy" }, DocumentStatus::ACTUAL, { 1, 1, 1 });
     search_server.AddDocument(6, std::string{ "big dog sparrow Vasiliy" }, DocumentStatus::ACTUAL, { 1, 1, 1 });
 
-    RemoveDuplicates(search_server);        // works fine
+    for (int i = 10; i < 100; ++i) {
+        search_server.AddDocument(i, std::string{ "big dog sparrow Vasiliy" }, DocumentStatus::ACTUAL, { 1, 1, 1 });
+    }
+
+    {
+        //LOG_DURATION_STREAM("Remove duplicates", std::cerr);
+        RemoveDuplicates(search_server);
+    }
     return 0;
 }

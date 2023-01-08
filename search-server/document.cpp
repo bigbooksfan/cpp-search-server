@@ -18,9 +18,17 @@ void PrintDocument(const Document& document) {
 }
 
 std::ostream& operator<<(std::ostream& os, DocumentStatus doc_status) {
-    if (doc_status == DocumentStatus::ACTUAL) os << "actual";
-    if (doc_status == DocumentStatus::BANNED) os << "banned";
-    if (doc_status == DocumentStatus::IRRELEVANT) os << "irrelevant";
-    if (doc_status == DocumentStatus::REMOVED) os << "removed";
+    if (doc_status == DocumentStatus::ACTUAL) {
+        os << "actual";
+    }
+    if (doc_status == DocumentStatus::BANNED) {
+        os << "banned";
+    }
+    if (doc_status == DocumentStatus::IRRELEVANT) {
+        os << "irrelevant";
+    }
+    if (doc_status == DocumentStatus::REMOVED) {
+        os << "removed";
+    }
     return os;
 }

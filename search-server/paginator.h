@@ -32,7 +32,9 @@ private:
 
 template<typename Iterator>
 std::ostream& operator<< (std::ostream& os, const IteratorRange<Iterator>& out) {
-    for (Iterator It = out.begin(); It < out.end(); ++It) os << *It;
+    for (Iterator it = out.begin(); it < out.end(); ++it) {
+        os << *it;
+    }
     return os;
 }
 
@@ -41,13 +43,13 @@ class Paginator {
 public:
     Paginator(Iterator begin, Iterator end, size_t page_size) {
         IteratorRange<Iterator> tmp;
-        for (Iterator It = begin; It < end;) {
-            if (It < end - page_size) {
-                tmp = IteratorRange<Iterator>(It, It + page_size);
-                It += page_size;
+        for (Iterator it = begin; it < end;) {
+            if (it < end - page_size) {
+                tmp = IteratorRange<Iterator>(it, it + page_size);
+                it += page_size;
             }
             else {
-                tmp = IteratorRange<Iterator>(It, end);
+                tmp = IteratorRange<Iterator>(it, end);
                 curr_.push_back(tmp);
                 break;
             }
