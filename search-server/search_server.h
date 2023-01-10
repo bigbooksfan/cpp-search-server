@@ -47,6 +47,9 @@ private:
 
     std::set<int> ids_;
 
+    // HINT : map < id , map < word , freq > > 
+    std::map<int, std::map<std::string, double>> words_freqs_overall_;
+
     // methods
 
     bool IsStopWord(const std::string& word) const;
@@ -65,11 +68,6 @@ private:
     std::vector<Document> FindAllDocuments(const Query& query, Predicate predicate) const;
 
     static bool IsValidWord(const std::string& word);
-
-    // HINT : map < id , map < word , freq > > 
-    std::map<int, std::map<std::string, double>> words_freqs_overall_;
-
-    static std::map<std::string, double> empty_map_;
 
 public:
 

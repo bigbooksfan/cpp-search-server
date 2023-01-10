@@ -2,8 +2,7 @@
 
 #include <algorithm>
 
-// static member definition
-std::map<std::string, double> SearchServer::empty_map_;
+
 
 std::set<int>::const_iterator SearchServer::begin()
 {
@@ -17,9 +16,15 @@ std::set<int>::const_iterator SearchServer::end()
 
 const std::map<std::string, double>& SearchServer::GetWordFrequencies(int document_id) const
 {
-
-    return words_freqs_overall_.count(document_id) ? words_freqs_overall_.at(document_id) : empty_map_;
+    const static std::map<std::string, double> empty_map_;
+    if (words_freqs_overall_.count(document_id) != 0) {
+        return words_freqs_overall_.at(document_id);
+    }
+    return empty_map_;
 }
+
+// static member definition
+//std::map<std::string, double> SearchServer::empty_map_;
 
 void SearchServer::RemoveDocument(int document_id)
 {
@@ -57,16 +62,14 @@ void SearchServer::AddDocument(int document_id, const std::string& document, Doc
 
     ids_.insert(document_id);
 
-    std::map<std::string, double> wordset;
     const std::vector<std::string> words = SplitIntoWordsNoStop(document);
     const double inv_word_count = 1.0 / words.size();
     for (const std::string& word : words) {
         word_to_document_freqs_[word][document_id] += inv_word_count;
-        wordset.emplace(word, word_to_document_freqs_[word][document_id]);
+        words_freqs_overall_[document_id].emplace(word, word_to_document_freqs_[word][document_id]);
     }
 
     documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-    words_freqs_overall_.emplace(document_id, wordset);
 }
 
 std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query, DocumentStatus stat) const {
