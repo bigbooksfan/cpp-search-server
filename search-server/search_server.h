@@ -47,10 +47,10 @@ private:                // QUERRIES FIELDS
     };
 
     // HINT : set <string_view> for execution::seq
-    struct QueryS {
-        std::set<std::string_view> plus_words;
-        std::set<std::string_view> minus_words;
-    };
+    //struct QueryS {
+    //    std::set<std::string_view> plus_words;
+    //    std::set<std::string_view> minus_words;
+    //};
 
     // HINT : struct < string_view data , bool is_minus , bool is_stop >
     struct QueryWord {
@@ -61,11 +61,10 @@ private:                // QUERRIES FIELDS
 
 public:         // constructors
 
-    explicit SearchServer(const std::string_view stop_words);
-    explicit SearchServer(const std::string stop_words);
-
     template<typename T>
     explicit SearchServer(const T& stop_words_container);
+    explicit SearchServer(const std::string_view stop_words);
+    explicit SearchServer(const std::string stop_words);
 
 public:             // methods
 
@@ -113,14 +112,15 @@ private:            // methods
 
     QueryWord ParseQueryWord(std::string_view text) const;
     
-    QueryS ParseQueryS(const std::string_view text, bool sort) const;
-    QueryV ParseQueryV(const std::string_view text, bool sort) const;
+    //QueryS ParseQueryS(const std::string_view text, bool sort) const;
+    QueryV ParseQueryV(const std::string_view text, bool sort = false) const;
 
     double ComputeWordInverseDocumentFreq(const std::string_view word) const;
 
     // Query is QueryS or QueryV
     template <typename Predicate>       // seq
-    std::vector<Document> FindAllDocuments(const QueryS& query, Predicate predicate, const std::execution::sequenced_policy& policy = std::execution::seq) const;   
+    std::vector<Document> FindAllDocuments(const QueryV& query, Predicate predicate, const std::execution::sequenced_policy& policy = std::execution::seq) const;   
+    //std::vector<Document> FindAllDocuments(const QueryS& query, Predicate predicate, const std::execution::sequenced_policy& policy = std::execution::seq) const;   
     template <typename Predicate>       // par
     std::vector<Document> FindAllDocuments(const QueryV& query, Predicate predicate, const std::execution::parallel_policy& policy) const;
 
@@ -148,7 +148,8 @@ template<typename Predicate, typename Policy>
 std::vector<Document> SearchServer::FindTopDocuments(Policy policy, const std::string_view raw_query, Predicate predicate) const {
 
     if constexpr (std::is_same_v<Policy, std::execution::sequenced_policy>) {
-        const QueryS query = ParseQueryS(raw_query, true);
+        const QueryV query = ParseQueryV(raw_query, true);
+        //const QueryS query = ParseQueryS(raw_query, true);
 
         std::vector<Document> matched_documents = FindAllDocuments(query, predicate);
 
@@ -166,28 +167,28 @@ std::vector<Document> SearchServer::FindTopDocuments(Policy policy, const std::s
         return matched_documents;
     }
 
-    QueryV query1 = ParseQueryV(raw_query, true);
-    std::sort(
-        std::execution::par,
-        query1.plus_words.begin(), query1.plus_words.end()
-    );
-    auto last = std::unique(
-        std::execution::par,
-        query1.plus_words.begin(), query1.plus_words.end()
-    );
-    query1.plus_words.erase(last, query1.plus_words.end());
+    QueryV query = ParseQueryV(raw_query, true);
+    //std::sort(
+    //    std::execution::par,
+    //    query1.plus_words.begin(), query1.plus_words.end()
+    //);
+    //auto last = std::unique(
+    //    std::execution::par,
+    //    query1.plus_words.begin(), query1.plus_words.end()
+    //);
+    //query1.plus_words.erase(last, query1.plus_words.end());
 
-    std::sort(
-        std::execution::par,
-        query1.minus_words.begin(), query1.minus_words.end()
-    );
-    last = std::unique(
-        std::execution::par,
-        query1.minus_words.begin(), query1.minus_words.end()
-    );
-    query1.minus_words.erase(last, query1.minus_words.end());
+    //std::sort(
+    //    std::execution::par,
+    //    query1.minus_words.begin(), query1.minus_words.end()
+    //);
+    //last = std::unique(
+    //    std::execution::par,
+    //    query1.minus_words.begin(), query1.minus_words.end()
+    //);
+    //query1.minus_words.erase(last, query1.minus_words.end());
 
-    std::vector<Document> matched_documents = FindAllDocuments(query1, predicate, std::execution::par);
+    std::vector<Document> matched_documents = FindAllDocuments(query, predicate, std::execution::par);
 
     std::sort(
         std::execution::par,
@@ -221,7 +222,8 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string_view raw_
 }
 
 template<typename Predicate>
-std::vector<Document> SearchServer::FindAllDocuments(const QueryS& query, Predicate predicate, const std::execution::sequenced_policy& policy) const {
+std::vector<Document> SearchServer::FindAllDocuments(const QueryV& query, Predicate predicate, const std::execution::sequenced_policy& policy) const {
+//std::vector<Document> SearchServer::FindAllDocuments(const QueryS& query, Predicate predicate, const std::execution::sequenced_policy& policy) const {
     std::map<int, double> document_to_relevance;
     for (const std::string_view word : query.plus_words) {
         if (word_to_document_freqs_.count(word) == 0) {
