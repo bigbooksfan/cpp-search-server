@@ -55,36 +55,8 @@ SearchServer::QueryWord SearchServer::ParseQueryWord(std::string_view text) cons
     return { text, is_minus, IsStopWord(text) };
 }
 
-SearchServer::QueryS SearchServer::ParseQueryS(const std::string_view text, bool sort) const {
-    QueryS query;
-
-    for (const std::string_view& word : SplitIntoWords(text)) {
-        const QueryWord query_word = ParseQueryWord(word);
-
-        if (query_word.is_minus && query_word.word.empty()) {
-            throw std::invalid_argument("No word after minus in ParseQuery()");
-        }
-        if (query_word.is_minus && query_word.word[0] == '-') {
-            throw std::invalid_argument("Double minus in ParseQuery()");
-        }
-        if (!IsValidWord(query_word.word)) {
-            throw std::invalid_argument("Special symbol in ParseQuery()");
-        }
-
-        if (!query_word.is_stop) {
-            if (query_word.is_minus) {
-                query.minus_words.insert(query_word.word);              // string_view
-            }
-            else {
-                query.plus_words.insert(query_word.word);              // string_view
-            }
-        }
-    }
-    return query;
-}
-
-SearchServer::QueryV SearchServer::ParseQueryV(const std::string_view text, bool sort) const {
-    QueryV query;
+SearchServer::Query SearchServer::ParseQuery(const std::string_view text, bool sort) const {
+    Query query;
 
     for (const std::string_view& word : SplitIntoWords(text)) {
         const QueryWord query_word = ParseQueryWord(word);
@@ -109,6 +81,27 @@ SearchServer::QueryV SearchServer::ParseQueryV(const std::string_view text, bool
         }
     }
 
+    if (sort) {
+        std::sort(
+            std::execution::par,
+            query.plus_words.begin(), query.plus_words.end()
+        );
+        auto last = std::unique(
+            std::execution::par,
+            query.plus_words.begin(), query.plus_words.end()
+        );
+        query.plus_words.erase(last, query.plus_words.end());
+
+        std::sort(
+            std::execution::par,
+            query.minus_words.begin(), query.minus_words.end()
+        );
+        last = std::unique(
+            std::execution::par,
+            query.minus_words.begin(), query.minus_words.end()
+        );
+        query.minus_words.erase(last, query.minus_words.end());
+    }
 
     return query;
 }
@@ -160,7 +153,8 @@ std::tuple<std::vector<std::string_view>, DocumentStatus> SearchServer::MatchDoc
 
 std::tuple<std::vector<std::string_view>, DocumentStatus> SearchServer::MatchDocument(
     const std::execution::sequenced_policy& policy, const std::string_view raw_query, int document_id) const {
-    const QueryS query = ParseQueryS(raw_query, true);
+    const Query query = ParseQuery(raw_query, true);
+    //const QueryS query = ParseQueryS(raw_query, true);
     std::vector<std::string_view> matched_words;
 
     for (const std::string_view word : query.minus_words) {
@@ -191,7 +185,7 @@ std::tuple<std::vector<std::string_view>, DocumentStatus> SearchServer::MatchDoc
     if (ids_.count(document_id) == 0)
         throw std::out_of_range("Invalid ID\n");
 
-    QueryV query = ParseQueryV(raw_query, false);      // QueryV - struct of two vectors
+    Query query = ParseQuery(raw_query, false);      // QueryV - struct of two vectors
     std::vector<std::string_view> matched_words;
     const std::map<std::string_view, double>& InMap = words_freqs_overall_.at(document_id);      // all words of this document
 
